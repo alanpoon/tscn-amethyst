@@ -7,3 +7,4 @@ authors = ["alanpoon <brightshadowx@gmail.com>"]
 rust-ini = "0.13"
 ron = "0.4.0"
 nom = "^4.1"
+serde = "*"
