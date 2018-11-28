@@ -11,5 +11,5 @@ os:
 rust: 
   - stable
 script: 
-  - "cargo build --release"
+  - "cargo run --example parse"
 sudo: false

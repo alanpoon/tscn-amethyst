@@ -39,25 +39,28 @@ impl StringUtils for String {
     }
 }
 named!(transform_<Vec<&str>>,do_parse!(
-    _a:take_until!(" ") >>
-    b:separated_list!(tag!(","),take_until!(" ")) >>
-    (b.iter().map(|x|std::str::from_utf8(x).unwrap()).collect())
+    _a:take_until_and_consume!(" ") >>
+    b:separated_list!(tag!(", "),alt!(take_until!(",")|take_until!(" )"))) >>
+    (b.iter().map(|x|{
+        println!("x {:?}",x);
+        std::str::from_utf8(x).unwrap()}).collect())
     )
 );
 named!(transform_sec<(&str,Vec<String>)>,do_parse!(
     node_name:map_res!(take_until!(" "),std::str::from_utf8) >>
-    _path: many1!(tag!("path=")) >>
+    _path: many0!(tag!("path=")) >>
     path_value: many1!(map_res!(take_until!(" "),std::str::from_utf8)) >>
     (node_name,path_value.iter().map(|x|x.to_string()).collect())
 ));
 //named!( )
-pub fn parse(filename:&Path){
+pub fn parse(filename:&Path)->Vec<data>{
     let conf = Ini::load_from_file(filename).unwrap();
     let mut ext_resource_vec = vec![];
     let mut entities:Vec<data> = vec![];
     // iterating
     for (sec, prop) in &conf {
         let sec_str = sec.to_owned().unwrap();
+        println!("sec_str {:?}",sec_str);
         let transform_sec_res = transform_sec(sec_str.as_bytes()).unwrap().1;
         if transform_sec_res.0 =="ext_resource"{
             let sec_path = transform_sec_res.1.get(0).unwrap().clone();
@@ -66,8 +69,10 @@ pub fn parse(filename:&Path){
         if transform_sec_res.0 =="node"{
         //if sec_split.get(0).unwrap()==&"node"{
             let e_r_r = prop["mesh"].to_string();
-            let e_r = e_r_r.substring(12,prop["mesh"].find(")").unwrap()-1).parse::<usize>().unwrap();
-            let e_t = transform_(prop["transfrom"].as_bytes());
+            let e_r = e_r_r.substring(13,e_r_r.len()-15).parse::<usize>().unwrap();
+            println!("prop:{:?}",prop["transform"]);
+            let e_t = transform_(prop["transform"].as_bytes());
+            println!("e_t {:?}",e_t);
             let e_t_f32:Vec<f32> = e_t.unwrap().1.iter().map(|x| x.parse::<f32>().unwrap()).collect();
             let mut e_t_f32_arr:[[f32; 4]; 4]=[[0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0]];
             let mut c:f32 =0.0;
@@ -92,11 +97,7 @@ pub fn parse(filename:&Path){
             };
             entities.push(data_1);
         }
-        println!("entities: {:?}", entities);
-        /*for (key, value) in prop{
-            println!("{:?}:{:?}", key, value);
-        }
-        */
 
     }
+    entities
 }
