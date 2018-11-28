@@ -9,6 +9,7 @@ extern crate serde;
 extern crate ini;
 #[macro_use]
 extern crate nom;
+use nom::float;
 use ini::Ini;
 #[derive(Serialize,Debug)]
 pub struct ObjFormat{}
@@ -38,12 +39,21 @@ impl StringUtils for String {
         self.chars().skip(start).take(len).collect()
     }
 }
+/*
 named!(transform_<Vec<&str>>,do_parse!(
     _a:take_until_and_consume!(" ") >>
-    b:separated_list!(tag!(", "),alt!(take_until!(",")|take_until!(" )"))) >>
+    b:separated_list!(char!(","),digit) >>
     (b.iter().map(|x|{
         println!("x {:?}",x);
         std::str::from_utf8(x).unwrap()}).collect())
+    )
+);
+*/
+named!(transform_<&str,Vec<f32>>,
+     delimited!(
+        tag!("Transform( "),
+        separated_list!(tag!(", "), float),
+        tag!(" )")
     )
 );
 named!(transform_sec<(&str,Vec<String>)>,do_parse!(
@@ -59,7 +69,7 @@ pub fn parse(filename:&Path)->Vec<data>{
     let mut entities:Vec<data> = vec![];
     // iterating
     for (sec, prop) in &conf {
-        let sec_str = sec.to_owned().unwrap();
+        let sec_str = sec.to_owned().unwrap().clone();
         println!("sec_str {:?}",sec_str);
         let transform_sec_res = transform_sec(sec_str.as_bytes()).unwrap().1;
         if transform_sec_res.0 =="ext_resource"{
@@ -71,9 +81,9 @@ pub fn parse(filename:&Path)->Vec<data>{
             let e_r_r = prop["mesh"].to_string();
             let e_r = e_r_r.substring(13,e_r_r.len()-15).parse::<usize>().unwrap();
             println!("prop:{:?}",prop["transform"]);
-            let e_t = transform_(prop["transform"].as_bytes());
+            let e_t = transform_(&prop["transform"]);
             println!("e_t {:?}",e_t);
-            let e_t_f32:Vec<f32> = e_t.unwrap().1.iter().map(|x| x.parse::<f32>().unwrap()).collect();
+            let e_t_f32:Vec<f32> = e_t.unwrap().1;
             let mut e_t_f32_arr:[[f32; 4]; 4]=[[0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0],[0.0,0.0,0.0,0.0]];
             let mut c:f32 =0.0;
             for t in e_t_f32{
@@ -86,6 +96,7 @@ pub fn parse(filename:&Path)->Vec<data>{
                 }
             }
             let e_r_i = e_r - 1;
+            println!("e_r_i {:?} length {:?}",e_r_i,ext_resource_vec.len());
             let ex_i=ext_resource_vec.get(e_r_i).unwrap().to_string();
             let data_1 = data{
                 graphics:graphics{
